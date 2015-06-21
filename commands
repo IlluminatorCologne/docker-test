@@ -1,0 +1,49 @@
+#DOCKER
+--memory 1g --memory-swap 512m --net bridge 
+
+docker run -td --cpu-shares 10 \
+--mac-address 02:42:ac:11:00:08 --name tom01 --hostname tom01 \
+qsc/tomcat
+
+The docker logs command looks inside the container and returns its standard output.
+# docker logs container_name
+The docker ps has returned some useful information about containers.
+# docker ps
+The docker stop command tells Docker to politely stop the running container.
+# docker stop container_name
+Attach to a running docker container shell
+# docker attach dock01
+Start an existing, exited container
+# docker start dock01
+
+## network config
+## example:
+## br0 (192.168.11.222) is host iface
+## macvlan0 (192.168.11.130) will be added to container dock01
+# ip link add macvlan0 link br0 type macvlan mode bridge
+# ip link set netns $(xdocker-pid dock01) macvlan0
+# nsenter -t $(xdocker-pid dock01) -n ip link set macvlan0 up
+## default route in container will be changed to use macvlan0
+# nsenter -t $(xdocker-pid dock01) -n ip route del default
+# nsenter -t $(xdocker-pid dock01) -n ip addr add 192.168.11.130/24 dev macvlan0
+# nsenter -t $(xdocker-pid dock01) -n ip route add default via 192.168.11.222 dev macvlan0
+
+##### host bridge to containers macvlan-br0 to access container assigned ip addresses
+# ip link add macvlan-br0 link br0 type macvlan mode bridge
+# ip addr add 192.168.11.131 dev macvlan-br0
+# ip link set macvlan-br0 up
+# ip route add 192.168.11.130 dev macvlan-br0
+##### need to add route for every ip address assigned to docker containers
+# ip route add 192.168.11.132 dev macvlan-br0
+
+## Cleanup
+docker rm `docker ps -a | grep Exited | awk '{print $1 }'` ## remove all exited containers
+docker rmi `docker images -aq` ## remove all images
+docker images --no-trunc| grep none | awk '{print $3}' | xargs -r docker rmi
+
+
+## Examples
+docker run --name dns --restart=always -d -p 172.16.177.20:53:53/udp dns
+docker run --name registry --restart=always -d -p 172.16.177.12:80:5000 registry
+docker run --name cache --restart=always -d -p 172.16.177.13:80:3142 -v /data/cache:/var/cache/apt-cacher-ng cache
+docker run --name mirror --restart=always -d -p 172.16.177.19:80:80 -v /data/mirror:/usr/share/nginx/html:ro mirror
