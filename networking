@@ -1,0 +1,20 @@
+
+
+## network config
+## example:
+## br0 (192.168.11.222) is host iface
+## macvlan0 (192.168.11.130) will be added to container tom01
+ip link add macvlan0 link br0 type macvlan mode bridge && \
+ip link set netns $(xdocker-pid tom01) macvlan0 && \
+nsenter -t $(xdocker-pid tom01) -n ip link set macvlan0 up && \
+nsenter -t $(xdocker-pid tom01) -n ip route del default && \
+nsenter -t $(xdocker-pid tom01) -n ip addr add 192.168.11.133/24 dev macvlan0 && \
+nsenter -t $(xdocker-pid tom01) -n ip route add default via 192.168.11.222 dev macvlan0
+
+##### host bridge to containers macvlan-br0 to access container assigned ip addresses
+# ip link add macvlan-br0 link br0 type macvlan mode bridge
+# ip addr add 192.168.11.131 dev macvlan-br0
+# ip link set macvlan-br0 up
+# ip route add 192.168.11.130 dev macvlan-br0
+##### need to add route for every ip address assigned to docker containers
+# ip route add 192.168.11.133 dev macvlan255
